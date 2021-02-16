@@ -59,7 +59,15 @@ repo:
   port: 8080
   registry_endpoint: 'metalk8s-registry-from-config.invalid'
 
-networks: {}
+networks:
+  listening_process_per_role:
+    bootstrap:
+      control_plane_ip:4505:
+        - null
+        - salt-master
+      control_plane_ip:4506:
+        - null
+        - salt-master
 
 kubelet:
   container_engine: "containerd"

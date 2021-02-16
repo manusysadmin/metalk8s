@@ -286,6 +286,256 @@ services:
     result: |-
       Service my-enabled-service conflicts with MetalK8s installation, please stop and disable it.
 
+ports:
+  # 1. Success: Nominal
+  - listening_process:
+      6443:
+        - apiserver
+        - null
+      127.0.0.1:9099:
+        - null
+        - calico-node
+      control_plane_ip:4505:
+        - null
+        - salt-master
+    net_conns_ret:
+      - laddr: ["1.1.1.1", 4505]
+        pid: 147
+    process_ret:
+      147: salt-master
+    result: True
+  # 1. bis (Nothing listening)
+  - listening_process:
+      - 6443
+      - 127.0.0.1:9099
+    result: True
+  # 1. ter
+  - listening_process: 6443
+    net_conns_ret:
+      - laddr: ["::", 22]
+        pid: 123
+    process_ret:
+      123: sshd
+    result: True
+
+  # 2. Success: Nothing expected
+  - listening_process: {}
+    result: True
+
+  # 3. Success: Process already running
+  - listening_process:
+      6443:
+        - apiserver
+      127.0.0.1:9099: calico-node
+    net_conns_ret:
+      - laddr: ["::", 6443]
+        pid: 123
+      - laddr: ["127.0.0.1", 9099]
+        pid: 345
+    process_ret:
+      123: "apiserver"
+      345: "calico-node"
+    result: True
+  # 3. bis (per role)
+  - listening_process_per_role:
+      master:
+        6443:
+          - null
+          - apiserver
+      node:
+        127.0.0.1:9099:
+          - null
+          - calico-node
+      bootstrap:
+        1.2.3.4:4505:
+          - null
+          - salt-master
+    roles:
+      - master
+      - node
+    net_conns_ret:
+      - laddr: ["::", 6443]
+        pid: 123
+      - laddr: ["127.0.0.1", 9099]
+        pid: 345
+      - laddr: ["1.2.3.4", 4505]
+        pid: 678
+    process_ret:
+      123: apiserver
+      345: calico-node
+      678: not-salt-master
+    result: True
+  # 3. ter (role from map)
+  - get_map_ret:
+      listening_process_per_role:
+        master:
+          6443:
+            - null
+            - apiserver
+        node:
+          127.0.0.1:9099:
+            - null
+            - calico-node
+        bootstrap:
+          1.2.3.4:4505:
+            - null
+            - salt-master
+    roles:
+      - master
+      - node
+    net_conns_ret:
+      - laddr: ["::", 6443]
+        pid: 123
+      - laddr: ["127.0.0.1", 9099]
+        pid: 345
+      - laddr: ["1.2.3.4", 4505]
+        pid: 678
+    process_ret:
+      123: apiserver
+      345: calico-node
+      678: not-salt-master
+    result: True
+  # 3. quater (with role from pillar)
+  - listening_process_per_role:
+      master:
+        6443: apiserver
+      node:
+        127.0.0.1:9099: calico-node
+      bootstrap:
+        1.2.3.4:4505: salt-master
+    roles:
+      - master
+      - node
+    net_conns_ret:
+      - laddr: ["::", 6443]
+        pid: 123
+      - laddr: ["127.0.0.1" ,9099]
+        pid: 345
+      - laddr: ["1.2.3.4", 4505]
+        pid: 678
+    process_ret:
+      123: apiserver
+      345: calico-node
+      678: not-salt-master
+    result: True
+  # 3. ter (role from pillar)
+  - get_map_ret:
+      listening_process_per_role:
+        master:
+          6443:
+            - null
+            - apiserver
+        node:
+          127.0.0.1:9099:
+            - null
+            - calico-.*
+        bootstrap:
+          1.2.3.4:4505:
+            - null
+            - salt-master
+    pillar:
+      metalk8s:
+        nodes:
+          my_node_1:
+            roles:
+              - master
+              - node
+    net_conns_ret:
+      - laddr: ["::", 6443]
+        pid: 123
+      - laddr: ["::1", 9099]
+        pid: 345
+      - laddr: ["1.2.3.4", 4505]
+        pid: 678
+    process_ret:
+      123: apiserver
+      345: calico-node
+      678: not-salt-master
+    result: True
+
+  # 4. Error: expected process is not listening 
+  - listening_process:
+      6443: apiserver
+    expect_raise: True
+    result: |-
+      Listening process should match 'apiserver' on 6443 but nothing listening.
+  # 4. bis
+  - listening_process:
+      127.0.0.1:9099: calico-node
+    net_conns_ret:
+      - laddr: ["1.2.3.4", 9099]
+        pid: 111
+    process_ret:
+      111: another-proc
+    expect_raise: True
+    result: |-
+      Listening process should match 'calico-node' on 127.0.0.1:9099 but nothing listening.
+
+  # 5. Error: expect nothing listening
+  - listening_process: 6443
+    net_conns_ret:
+      - laddr: ["::", 6443]
+        pid: 123
+    process_ret:
+      123: my-invalid-process
+    expect_raise: True
+    result: |-
+      Nothing should be listening on 6443 but my-invalid-process\(123\) listen on 0.0.0.0.
+  # 5. bis (a process listen on :: when we want 127.0.0.1)
+  - listening_process: 127.0.0.1:9099
+    net_conns_ret:
+      - laddr: ["::", 9099]
+        pid: 123
+    process_ret:
+      123: my-invalid-process
+    raises: False
+    result: |-
+      Nothing should be listening on 127.0.0.1:9099 but my-invalid-process(123) listen on 0.0.0.0.
+
+  # 6. Error: Another unexpected process already listening
+  - listening_process:
+      127.0.0.1:9099:
+        - calico-.*
+      6443:
+        - apiserver
+    net_conns_ret:
+      - laddr: ["::", 6443]
+        pid: 111
+      - laddr: ["127.0.0.1", "9099"]
+        pid: 222
+    process_ret:
+      111: not-apiserver-at-all
+      222: not-calico-node
+    expect_raise: True
+    result: |-
+      Listening process should match 'calico-.*' on 127.0.0.1\:9099 but not-calico-node\(222\) listen on 127.0.0.1.
+      Listening process should match 'apiserver' on 6443 but not-apiserver-at-all\(111\) listen on 0.0.0.0.
+  # 6. bis (listening on another IP)
+  - listening_process:
+      127.0.0.1:9099:
+        - null
+        - calico-node
+      6443:
+        - apiserver
+    net_conns_ret:
+      - laddr: ["1.2.3.4", "6443"]
+        pid: 111
+      - laddr: ["::", "9099"]
+        pid: 222
+    process_ret:
+      111: not-apiserver-at-all
+      222: not-calico-node
+    expect_raise: True
+    result: |-
+      Nothing should be listening on 127.0.0.1:9099 but not-calico-node\(222\) listen on 0.0.0.0 or Listening process should match 'calico-node' on 127.0.0.1:9099 but not-calico-node\(222\) listen on 0.0.0.0.
+      Listening process should match 'apiserver' on 6443 but not-apiserver-at-all\(111\) listen on 1.2.3.4.
+
+  # 7. Error: Invalid listening process object
+  - listening_process: 12.3
+    expect_raise: True
+    result: |-
+      Invalid listening process, expected str, int, list or dict but got float
+
 sysctl:
   - params:
       net.ipv4.ip_forward: 1
