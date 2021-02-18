@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { lazy, useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { FormattedDate, FormattedTime } from 'react-intl';
 import styled from 'styled-components';
@@ -20,7 +20,7 @@ import {
   makeGetVolumesFromUrl,
   useRefreshEffect,
 } from '../services/utils';
-import NodeVolumes from './NodeVolumes';
+const NodeVolumes = lazy(() => import('./NodeVolumes'));
 import {
   InformationListContainer,
   InformationSpan,
@@ -215,6 +215,7 @@ const NodeInformation = (props) => {
   return (
     <NodeInformationContainer>
       <Tabs activeColor={theme.brand.secondary} items={items}>
+        <Suspense fallback={<Loader />}>
         <Switch>
           <Route path={`${match.url}/pods`} component={NodePods} />
           <Route
@@ -225,6 +226,7 @@ const NodeInformation = (props) => {
           />
           <Route path="/" component={NodeDetails} />
         </Switch>
+        </Suspense>
       </Tabs>
     </NodeInformationContainer>
   );
