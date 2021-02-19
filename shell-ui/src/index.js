@@ -9,19 +9,40 @@ import { AuthProvider, AuthProviderProps, UserManager } from 'oidc-react';
 import { QueryClient, QueryClientProvider } from 'react-query';
 import { Navbar } from './NavBar';
 import { UserDataListener } from './UserDataListener';
+import { logOut } from './auth/logout';
 
 const EVENTS_PREFIX = 'solutions-navbar--';
 export const AUTHENTICATED_EVENT: string = EVENTS_PREFIX + 'authenticated';
 
+type Options = { [path: string]: { en: string, fr: string, roles?: string[] } }; // TODO should be able to accept configs for paths in dropdown menu under user name
+
 export type SolutionsNavbarProps = {
-  'oidc-provider-url': string,
-  scopes: string,
-  'client-id': string,
+  'oidc-provider-url'?: string,
+  scopes?: string,
+  'client-id'?: string,
   'response-type'?: string,
   'redirect-url'?: string,
-  options?: { [path: string]: { en: string, fr: string, roles?: string[] } },
+  options?: Options,
   onAuthenticated?: (evt: CustomEvent) => void,
+  logOut?: () => void,
+  setUserManager?: (userManager: UserManager) => void,
 };
+
+type Config = {
+  docUrl?: string,
+  oidc?: {
+    providerUrl?: string,
+    redirectUrl?: string,
+    clientId?: string,
+    responseType?: string,
+    scopes?: string,
+  },
+  options?: Options,
+};
+
+// %CONFIG% is replaced at image boot by a provided configuration
+const jsonConfig = process.env.NODE_ENV === 'development' ? '{}' : '%CONFIG%' || '{}';
+const config: Config = JSON.parse(jsonConfig);
 
 const SolutionsNavbar = ({
   'oidc-provider-url': oidcProviderUrl,
@@ -31,7 +52,32 @@ const SolutionsNavbar = ({
   'response-type': responseType,
   options,
   onAuthenticated,
+  logOut,
+  setUserManager,
 }: SolutionsNavbarProps) => {
+  const userManager = new UserManager({
+    authority: oidcProviderUrl || config.oidc?.providerUrl,
+    client_id: clientId || config.oidc?.clientId,
+    redirect_uri:
+      redirectUrl || config.oidc?.redirectUrl || window.location.href,
+    silent_redirect_uri:
+      redirectUrl || config.oidc?.redirectUrl || window.location.href,
+    post_logout_redirect_uri:
+      redirectUrl || config.oidc?.redirectUrl || window.location.href,
+    response_type: responseType || config.oidc?.responseType || 'code',
+    scope: scopes || config.oidc?.scopes,
+    loadUserInfo: true,
+    automaticSilentRenew: true,
+    monitorSession: false,
+    userStore: new WebStorageStateStore({ store: localStorage }),
+  });
+
+  useEffect(() => {
+    if (setUserManager) {
+      setUserManager(userManager);
+    }
+  }, [!setUserManager]);
+
   const oidcConfig: AuthProviderProps = {
     onBeforeSignIn: () => {
       localStorage.setItem('redirectUrl', window.location.href);
@@ -49,19 +95,7 @@ const SolutionsNavbar = ({
         location.hash = '';
       }
     },
-    userManager: new UserManager({
-      authority: oidcProviderUrl,
-      client_id: clientId,
-      redirect_uri: redirectUrl || window.location.href,
-      silent_redirect_uri: redirectUrl || window.location.href,
-      post_logout_redirect_uri: redirectUrl || window.location.href,
-      response_type: responseType || 'code',
-      scope: scopes,
-      loadUserInfo: true,
-      automaticSilentRenew: true,
-      monitorSession: false,
-      userStore: new WebStorageStateStore({ store: localStorage }),
-    }),
+    userManager,
   };
 
   return (
@@ -130,8 +164,14 @@ class SolutionsNavbarWebComponent extends reactToWebComponent(
 ) {
   constructor() {
     super();
+    this.setUserManager = (userManager: UserManager) => {
+      this.userManager = userManager;
+    };
     this.onAuthenticated = (evt: CustomEvent) => {
       this.dispatchEvent(evt);
+    };
+    this.logOut = () => {
+      logOut(this.userManager);
     };
   }
 }
