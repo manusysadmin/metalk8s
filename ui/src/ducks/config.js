@@ -20,7 +20,7 @@ import type { Result } from '../types';
 // Actions
 export const SET_LANG = 'SET_LANG';
 export const SET_THEME = 'SET_THEME';
-
+export const SET_FEATURE_FLAG = 'SET_FEATURE_FLAG';
 const FETCH_THEME = 'FETCH_THEME';
 const FETCH_CONFIG = 'FETCH_CONFIG';
 export const SET_API_CONFIG = 'SET_API_CONFIG';
@@ -58,6 +58,7 @@ const defaultState = {
   userManager: null,
   isUserLoaded: false,
   themes: {}, // include light, dark and custom
+  flags: [], // feature gate
 };
 
 export type ConfigState = {
@@ -104,6 +105,8 @@ export default function reducer(
       return { ...state, isUserLoaded: action.payload };
     case SET_THEMES:
       return { ...state, themes: action.payload };
+    case SET_FEATURE_FLAG:
+      return { ...state, flags: action.payload };
     default:
       return state;
   }
@@ -167,6 +170,10 @@ export function setThemesAction(themes: Themes) {
   return { type: SET_THEMES, payload: themes };
 }
 
+export function setFeatureGateAction(flags: []) {
+  return { type: SET_FEATURE_FLAG, payload: flags };
+}
+
 // Selectors
 export const languageSelector = (state: RootState) => state.config.language;
 export const apiConfigSelector = (state: RootState) => state.config.api;
@@ -189,6 +196,7 @@ export function* fetchTheme(): Generator<Effect, void, Result<WrappedThemes>> {
 export function* fetchConfig(): Generator<Effect, void, Result<Config>> {
   yield call(Api.initialize, process.env.PUBLIC_URL);
   const result = yield call(Api.fetchConfig);
+
   if (!result.error && result.url_oidc_provider && result.url_redirect) {
     yield call(fetchTheme);
     yield put(setApiConfigAction(result));
@@ -209,6 +217,9 @@ export function* fetchConfig(): Generator<Effect, void, Result<Config>> {
     const userManager = yield select((state) => state.config.userManager);
     yield call(loadUser, store, userManager);
     yield put(setUserLoadedAction(true));
+  }
+  if (!result.error && result.flags) {
+    yield put(setFeatureGateAction(result.flags));
   }
 }
 
