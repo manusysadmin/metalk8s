@@ -17,10 +17,18 @@ Create kube-scheduler Pod manifest:
         port: http-metrics
         scheme: HTTP
         command:
+        # kubeadm flags {
           - kube-scheduler
-          - --address={{ grains['metalk8s']['control_plane_ip'] }}
+          - --authentication-kubeconfig=/etc/kubernetes/scheduler.conf
+          - --authorization-kubeconfig=/etc/kubernetes/scheduler.conf
+          # Disable this as 127.0.0.1 from kubeadm as we need to bind this one
+          # on the control plane ip of the node
+          #- --bind-address=127.0.0.1
           - --kubeconfig=/etc/kubernetes/scheduler.conf
           - --leader-elect=true
+          - --port=0
+        # }
+          - --bind-address={{ grains['metalk8s']['control_plane_ip'] }}
           - --v={{ 2 if metalk8s.debug else 0 }}
         requested_cpu: 100m
         ports:
