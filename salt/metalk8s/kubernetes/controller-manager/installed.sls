@@ -22,17 +22,30 @@ Create kube-controller-manager Pod manifest:
         port: http-metrics
         scheme: HTTP
         command:
+        # kubeadm flags {
           - kube-controller-manager
-          - --address={{ grains['metalk8s']['control_plane_ip'] }}
-          - --allocate-node-cidrs=true
-          - --cluster-cidr={{ networks.pod }}
+          - --authentication-kubeconfig=/etc/kubernetes/controller-manager.conf
+          - --authorization-kubeconfig=/etc/kubernetes/controller-manager.conf
+          # Disable this as 127.0.0.1 from kubeadm as we need to bind this one
+          # on the control plane ip of the node
+          #- --bind-address=127.0.0.1
+          - --client-ca-file=/etc/kubernetes/pki/ca.crt
+          - --cluster-name=kubernetes
+          - --cluster-signing-cert-file=/etc/kubernetes/pki/ca.crt
+          - --cluster-signing-key-file=/etc/kubernetes/pki/ca.key
           - --controllers=*,bootstrapsigner,tokencleaner
           - --kubeconfig=/etc/kubernetes/controller-manager.conf
           - --leader-elect=true
-          - --node-cidr-mask-size=24
+          - --port=0
+          - --requestheader-client-ca-file=/etc/kubernetes/pki/front-proxy-ca.crt
           - --root-ca-file=/etc/kubernetes/pki/ca.crt
           - --service-account-private-key-file=/etc/kubernetes/pki/sa.key
           - --use-service-account-credentials=true
+        # }
+          - --bind-address={{ grains['metalk8s']['control_plane_ip'] }}
+          - --allocate-node-cidrs=true
+          - --cluster-cidr={{ networks.pod }}
+          - --node-cidr-mask-size=24
           - --v={{ 2 if metalk8s.debug else 0 }}
         requested_cpu: 200m
         ports:
