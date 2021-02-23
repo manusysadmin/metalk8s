@@ -2,8 +2,10 @@
 
 declare -r RHSM_USERNAME=$1
            RHSM_PASSWORD=$2
-           RETRIES=${3:-5}
-           WAIT=${4:-2}
+           PROXY_IP=${3:-}
+           PROXY_PORT=${4:-3128}
+           RETRIES=5
+           WAIT=2
 
 # shellcheck disable=SC1091
 . /etc/os-release
@@ -24,6 +26,12 @@ case "$OS_MAJOR_RELEASE" in
         )
         ;;
 esac
+
+if [[ "$PROXY_IP" ]]; then
+    subscription-manager config \
+        --server.proxy_hostname="$PROXY_IP" \
+        --server.proxy_port="$PROXY_PORT"
+fi
 
 # We retry $RETRIES times in case of transient network issues.
 for (( try=0; try <= RETRIES; ++try )); do

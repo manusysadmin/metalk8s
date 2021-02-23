@@ -68,6 +68,13 @@ resource "openstack_compute_instance_v2" "bastion" {
     ]
   }
 
+  # Configure HTTP proxy for yum repositories
+  provisioner "remote-exec" {
+    inline = [
+      "if [ -n '${var.proxy_ip}' ]; then sudo yum-config-manager --save --setopt proxy=http://${var.proxy_ip}:${var.proxy_port}; fi"
+    ]
+  }
+
   # Install Cypress requirements
   provisioner "remote-exec" {
     inline = [
@@ -162,11 +169,18 @@ resource "openstack_compute_instance_v2" "bootstrap" {
     ]
   }
 
+  # Configure HTTP proxy for yum repositories
+  provisioner "remote-exec" {
+    inline = [
+      "if [ -n '${var.proxy_ip}' ]; then sudo yum-config-manager --save --setopt proxy=http://${var.proxy_ip}:${var.proxy_port}; fi"
+    ]
+  }
+
   # Register RHSM if OS = rhel
   provisioner "remote-exec" {
     inline = [
       "case '${var.os}' in rhel-*) sudo chmod +x scripts/rhsm-register.sh;; esac",
-      "case '${var.os}' in rhel-*) sudo scripts/rhsm-register.sh '${var.rhsm_username}' '${var.rhsm_password}';; esac"
+      "case '${var.os}' in rhel-*) sudo scripts/rhsm-register.sh '${var.rhsm_username}' '${var.rhsm_password}' '${var.proxy_ip}' '${var.proxy_port}';; esac"
     ]
   }
 
@@ -249,6 +263,13 @@ resource "openstack_compute_instance_v2" "nodes" {
       "sudo scripts/network.sh eth1",
       "sudo scripts/network.sh eth2",
       "sudo systemctl restart network || sudo systemctl restart NetworkManager"
+    ]
+  }
+
+  # Configure HTTP proxy for yum repositories
+  provisioner "remote-exec" {
+    inline = [
+      "if [ -n '${var.proxy_ip}' ]; then sudo yum-config-manager --save --setopt proxy=http://${var.proxy_ip}:${var.proxy_port}; fi"
     ]
   }
 

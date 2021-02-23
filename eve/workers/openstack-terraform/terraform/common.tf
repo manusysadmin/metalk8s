@@ -28,6 +28,16 @@ variable "offline" {
   default = true
 }
 
+variable "proxy_ip" {
+  type    = string
+  default = "10.100.4.67"
+}
+
+variable "proxy_port" {
+  type    = string
+  default = "3128"
+}
+
 resource "random_string" "current" {
   length  = 5
   special = false

@@ -79,6 +79,16 @@ resource "openstack_networking_secgroup_rule_v2" "egress_egress" {
   security_group_id = openstack_networking_secgroup_v2.egress.id
 }
 
+resource "openstack_networking_secgroup_rule_v2" "egress_proxy" {
+  direction         = "egress"
+  ethertype         = "IPv4"
+  protocol          = "tcp"
+  port_range_min    = var.proxy_port
+  port_range_max    = var.proxy_port
+  remote_ip_prefix  = "${var.proxy_ip}/32"
+  security_group_id = openstack_networking_secgroup_v2.egress.id
+}
+
 # Allow DNS queries to go out, especially because SSHd is doing
 # reverse DNS on incoming IPs, otherwise it could really slow down
 # connections
