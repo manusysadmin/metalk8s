@@ -87,6 +87,7 @@ resource "openstack_compute_instance_v2" "bastion" {
   provisioner "remote-exec" {
     inline = [
       "sudo yum install -y epel-release",
+      "if [ -n '${var.proxy_ip}' ]; then sudo yum-config-manager --save --setopt epel.sslverify=0; fi",
       "sudo yum install -y python36-pip git",
       "sudo pip3.6 install tox",
     ]

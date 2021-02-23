@@ -27,6 +27,8 @@ NODE_PACKAGES=(
 
 curl -sL https://rpm.nodesource.com/setup_10.x | sudo bash -
 
+sudo yum-config-manager --save --setopt nodesource.sslverify=0
+
 sudo yum install "${YUM_OPTS[@]}" "${RPM_PACKAGES[@]}"
 
 npm install "${NPM_OPTS[@]}" "${NODE_PACKAGES[@]}"

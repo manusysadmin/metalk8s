@@ -29,6 +29,7 @@ esac
 
 if [[ "$PROXY_IP" ]]; then
     subscription-manager config \
+        --server.insecure=1 \
         --server.proxy_hostname="$PROXY_IP" \
         --server.proxy_port="$PROXY_PORT"
 fi
