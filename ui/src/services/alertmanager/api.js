@@ -1,5 +1,6 @@
 //@flow
 import ApiClient from '../ApiClient';
+import { STATUS_CRITICAL, STATUS_HEALTH } from '../../constants';
 
 let alertmanagerApiClient: ?ApiClient = null;
 
@@ -40,3 +41,16 @@ export function getAlerts() {
     return resolve;
   });
 }
+
+export const checkActiveAlertProvider = (): Promise<{
+  status: 'healthy' | 'critical',
+}> => {
+  // depends on Watchdog to see the if Alertmanager is up
+  return getAlerts().then((result) => {
+    const watchdog = result.find(
+      (alert) => alert.labels.alertname === 'Watchdog',
+    );
+    if (watchdog) return STATUS_HEALTH;
+    else return STATUS_CRITICAL;
+  });
+};
